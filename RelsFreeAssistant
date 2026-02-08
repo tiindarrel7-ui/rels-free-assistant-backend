@@ -1,0 +1,83 @@
+<script>
+const messages = document.getElementById("messages");
+const input = document.getElementById("input");
+
+const SERVER_URL = "https://YOUR-BACKEND.onrender.com/chat";
+
+function add(text, type="") {
+  const div = document.createElement("div");
+  div.textContent = text;
+  div.style.margin = "5px 0";
+  if (type === "offline") div.style.color = "orange";
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+// Show offline status when page loads
+if (!navigator.onLine) {
+  add("⚠️ Rel’s Free Assistant is offline. Please connect to the internet.", "offline");
+}
+
+window.addEventListener("offline", () => {
+  add("⚠️ You are offline. Messages cannot be sent.", "offline");
+});
+
+window.addEventListener("online", () => {
+  add("✅ Back online! You can now chat with Rel’s Free Assistant.");
+});
+
+input.addEventListener("keypress", e => {
+  if (e.key === "Enter") send();
+});
+
+function send() {
+  const text = input.value;
+  if (!text) return;
+
+  if (!navigator.onLine) {
+    add("⚠️ Cannot send message. You are offline.", "offline");
+    return;
+  }
+
+  add("You: " + text);
+  input.value = "";
+
+  fetch(SERVER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (!data.reply) {
+      add("⚠️ Rel’s Free Assistant is temporarily unavailable.", "offline");
+      return;
+    }
+    add("AI: " + data.reply);
+    speak(data.reply);
+  })
+  .catch(() => {
+    add("⚠️ Rel’s Free Assistant is offline. Try again later.", "offline");
+  });
+}
+
+function startVoice() {
+  if (!navigator.onLine) {
+    add("⚠️ Voice needs internet connection.", "offline");
+    return;
+  }
+
+  const rec = new webkitSpeechRecognition();
+  rec.lang = "en-US";
+  rec.onresult = e => {
+    input.value = e.results[0][0].transcript;
+    send();
+  };
+  rec.start();
+}
+
+function speak(text) {
+  const s = new SpeechSynthesisUtterance(text);
+  speechSynthesis.speak(s);
+}
+</script>
